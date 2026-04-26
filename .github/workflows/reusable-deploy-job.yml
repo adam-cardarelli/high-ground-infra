@@ -1,0 +1,153 @@
+name: Reusable — Deploy Cloud Run job
+
+# For batch / scheduled work (agents, pipelines, etc.).
+#
+# Two patterns:
+#   1. Single job per app: pass --source-dir, image gets built and tagged <app>:<sha>.
+#   2. Shared image, multiple jobs: agents framework uses this.
+#      Build once with `build_only: true`, then call this workflow N times with `image:` set.
+#
+# Optional scheduling: pass `cron` (and optional `tz`) to also wire Cloud Scheduler.
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: "App slug (becomes Cloud Run job hg-<app>)"
+        required: true
+        type: string
+      source_dir:
+        description: "Path to dir containing Dockerfile. Required unless image is provided."
+        required: false
+        type: string
+        default: ""
+      image:
+        description: "Existing Artifact Registry image. If set, skips the build step."
+        required: false
+        type: string
+        default: ""
+      build_only:
+        description: "Build the image and exit (no job deploy). Use to seed shared images."
+        required: false
+        type: boolean
+        default: false
+      task_timeout:
+        required: false
+        type: string
+        default: "15m"
+      max_retries:
+        required: false
+        type: string
+        default: "1"
+      memory:
+        required: false
+        type: string
+        default: "1Gi"
+      cpu:
+        required: false
+        type: string
+        default: "1"
+      secrets_map:
+        required: false
+        type: string
+        default: ""
+      env_vars:
+        required: false
+        type: string
+        default: ""
+      cron:
+        description: "If set, also schedule the job via Cloud Scheduler. e.g. '30 17 * * 1-5'"
+        required: false
+        type: string
+        default: ""
+      tz:
+        required: false
+        type: string
+        default: "America/New_York"
+      gcp_project:
+        required: false
+        type: string
+        default: "high-ground-labs"
+      gcp_region:
+        required: false
+        type: string
+        default: "us-central1"
+      wif_provider:
+        required: false
+        type: string
+        default: "projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/github/providers/github"
+      deployer_sa:
+        required: false
+        type: string
+        default: "hg-deployer@high-ground-labs.iam.gserviceaccount.com"
+      infra_ref:
+        required: false
+        type: string
+        default: "v1"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout app repo
+        uses: actions/checkout@v4
+
+      - name: Checkout high-ground-infra
+        uses: actions/checkout@v4
+        with:
+          repository: adam-cardarelli/high-ground-infra
+          ref: ${{ inputs.infra_ref }}
+          path: .infra
+
+      - name: Authenticate to GCP via Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ inputs.wif_provider }}
+          service_account: ${{ inputs.deployer_sa }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ inputs.gcp_project }}
+
+      - name: Deploy job
+        env:
+          GCP_PROJECT: ${{ inputs.gcp_project }}
+          GCP_REGION: ${{ inputs.gcp_region }}
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          chmod +x .infra/scripts/deploy-cloudrun-job.sh
+          ARGS=(
+            --app "${{ inputs.app }}"
+            --task-timeout "${{ inputs.task_timeout }}"
+            --max-retries "${{ inputs.max_retries }}"
+            --memory "${{ inputs.memory }}"
+            --cpu "${{ inputs.cpu }}"
+            --secrets "${{ inputs.secrets_map }}"
+            --env-vars "${{ inputs.env_vars }}"
+          )
+          if [[ -n "${{ inputs.image }}" ]]; then
+            ARGS+=(--image "${{ inputs.image }}")
+          else
+            ARGS+=(--source-dir "${{ inputs.source_dir }}")
+          fi
+          if [[ "${{ inputs.build_only }}" == "true" ]]; then
+            ARGS+=(--build-only)
+          fi
+          .infra/scripts/deploy-cloudrun-job.sh "${ARGS[@]}"
+
+      - name: Schedule job (Cloud Scheduler)
+        if: ${{ inputs.cron != '' && inputs.build_only != true }}
+        env:
+          GCP_PROJECT: ${{ inputs.gcp_project }}
+          GCP_REGION: ${{ inputs.gcp_region }}
+        run: |
+          chmod +x .infra/scripts/schedule-job.sh
+          .infra/scripts/schedule-job.sh \
+            --app "${{ inputs.app }}" \
+            --cron "${{ inputs.cron }}" \
+            --tz "${{ inputs.tz }}"

@@ -1,0 +1,135 @@
+name: Reusable — Deploy Cloud Run service
+
+# Called by app repos via:
+#   uses: <owner>/high-ground-infra/.github/workflows/reusable-deploy-service.yml@v1
+#
+# Authenticates to GCP via Workload Identity Federation (no JSON keys).
+# See docs/workload-identity.md for the one-time setup that makes the
+# `wif_provider` and `service_account` inputs work.
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: "App slug (becomes Cloud Run service hg-<app> and image <app>:<sha>)"
+        required: true
+        type: string
+      source_dir:
+        description: "Path to the dir containing the Dockerfile (relative to repo root)"
+        required: true
+        type: string
+      port:
+        required: false
+        type: string
+        default: "8080"
+      memory:
+        required: false
+        type: string
+        default: "512Mi"
+      cpu:
+        required: false
+        type: string
+        default: "1"
+      min_instances:
+        required: false
+        type: string
+        default: "0"
+      max_instances:
+        required: false
+        type: string
+        default: "10"
+      timeout:
+        required: false
+        type: string
+        default: "60"
+      allow_unauthenticated:
+        required: false
+        type: boolean
+        default: true
+      vpc_egress:
+        description: "none | all-traffic | private-ranges-only"
+        required: false
+        type: string
+        default: "none"
+      secrets_map:
+        description: "Comma-separated ENV=secret-name pairs, e.g. 'FACTSET_KEY=hg-data-workbench-factset-key'"
+        required: false
+        type: string
+        default: ""
+      env_vars:
+        description: "Comma-separated KEY=value pairs"
+        required: false
+        type: string
+        default: ""
+      gcp_project:
+        required: false
+        type: string
+        default: "high-ground-labs"
+      gcp_region:
+        required: false
+        type: string
+        default: "us-central1"
+      wif_provider:
+        description: "Workload Identity Provider resource name. Defaults to convention."
+        required: false
+        type: string
+        default: "projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/github/providers/github"
+      deployer_sa:
+        required: false
+        type: string
+        default: "hg-deployer@high-ground-labs.iam.gserviceaccount.com"
+      infra_ref:
+        description: "Tag/branch of high-ground-infra to source the deploy script from"
+        required: false
+        type: string
+        default: "v1"
+
+permissions:
+  contents: read
+  id-token: write   # required for WIF
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout app repo
+        uses: actions/checkout@v4
+
+      - name: Checkout high-ground-infra (for deploy script)
+        uses: actions/checkout@v4
+        with:
+          repository: adam-cardarelli/high-ground-infra
+          ref: ${{ inputs.infra_ref }}
+          path: .infra
+
+      - name: Authenticate to GCP via Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ inputs.wif_provider }}
+          service_account: ${{ inputs.deployer_sa }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ inputs.gcp_project }}
+
+      - name: Deploy
+        env:
+          GCP_PROJECT: ${{ inputs.gcp_project }}
+          GCP_REGION: ${{ inputs.gcp_region }}
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          chmod +x .infra/scripts/deploy-cloudrun-service.sh
+          .infra/scripts/deploy-cloudrun-service.sh \
+            --app "${{ inputs.app }}" \
+            --source-dir "${{ inputs.source_dir }}" \
+            --port "${{ inputs.port }}" \
+            --memory "${{ inputs.memory }}" \
+            --cpu "${{ inputs.cpu }}" \
+            --min-instances "${{ inputs.min_instances }}" \
+            --max-instances "${{ inputs.max_instances }}" \
+            --timeout "${{ inputs.timeout }}" \
+            --allow-unauthenticated "${{ inputs.allow_unauthenticated }}" \
+            --vpc-egress "${{ inputs.vpc_egress }}" \
+            --secrets "${{ inputs.secrets_map }}" \
+            --env-vars "${{ inputs.env_vars }}"
