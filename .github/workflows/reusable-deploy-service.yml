@@ -73,7 +73,7 @@ on:
         description: "Workload Identity Provider resource name. Defaults to convention."
         required: false
         type: string
-        default: "projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/github/providers/github"
+        default: "projects/267179877037/locations/global/workloadIdentityPools/github/providers/github"
       deployer_sa:
         required: false
         type: string
