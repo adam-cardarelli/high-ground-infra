@@ -40,6 +40,7 @@ VPC_EGRESS="none"
 VPC_CONNECTOR="company-data-conn"
 SECRETS=""
 ENV_VARS=""
+BUILD_ARGS=""
 RUNTIME_SA=""
 
 # ---- Parse args ----
@@ -61,6 +62,7 @@ while [[ $# -gt 0 ]]; do
     --vpc-egress)          VPC_EGRESS="$2"; shift 2 ;;
     --secrets)             SECRETS="$2"; shift 2 ;;
     --env-vars)            ENV_VARS="$2"; shift 2 ;;
+    --build-args)          BUILD_ARGS="$2"; shift 2 ;;
     --runtime-sa)          RUNTIME_SA="$2"; shift 2 ;;
     --git-sha)             GIT_SHA="$2"; shift 2 ;;
     *) echo "Unknown arg: $1"; exit 2 ;;
@@ -138,11 +140,43 @@ echo "==> Building image: ${IMAGE_SHA}"
 # --suppress-logs: gcloud's recent default writes build logs to a Google-internal
 # bucket the calling SA can't read. Skip log streaming; build still runs and
 # gcloud waits + returns final status. Inspect failures in GCP console.
-gcloud builds submit "${SOURCE_DIR}" \
-  --project="${PROJECT}" \
-  --tag "${IMAGE_SHA}" \
-  --suppress-logs \
-  --quiet
+#
+# Build args: gcloud builds submit doesn't accept --build-arg directly when
+# using --tag. If build args are provided, generate an inline cloudbuild.yaml
+# step that does the docker build with --build-arg KEY=VALUE for each.
+BUILD_ARGS_FLAGS=()
+if [[ -n "$BUILD_ARGS" ]]; then
+  IFS=',' read -ra _BARGS <<< "$BUILD_ARGS"
+  for kv in "${_BARGS[@]}"; do
+    BUILD_ARGS_FLAGS+=(--build-arg "$kv")
+  done
+fi
+
+if [[ ${#BUILD_ARGS_FLAGS[@]} -gt 0 ]]; then
+  # Use docker build via a substitution-driven cloudbuild config so we can
+  # pass build args. Cloud Build's docker builder accepts --build-arg.
+  CLOUDBUILD_TMP=$(mktemp)
+  cat > "$CLOUDBUILD_TMP" <<EOF
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build'$(printf ", '--build-arg', '%s'" "${_BARGS[@]}"), '-t', '${IMAGE_SHA}', '.']
+images: ['${IMAGE_SHA}']
+options:
+  logging: CLOUD_LOGGING_ONLY
+EOF
+  gcloud builds submit "${SOURCE_DIR}" \
+    --project="${PROJECT}" \
+    --config "$CLOUDBUILD_TMP" \
+    --suppress-logs \
+    --quiet
+  rm -f "$CLOUDBUILD_TMP"
+else
+  gcloud builds submit "${SOURCE_DIR}" \
+    --project="${PROJECT}" \
+    --tag "${IMAGE_SHA}" \
+    --suppress-logs \
+    --quiet
+fi
 
 # Tag :latest as a convenience pointer.
 gcloud artifacts docker tags add "${IMAGE_SHA}" "${IMAGE_LATEST}" \

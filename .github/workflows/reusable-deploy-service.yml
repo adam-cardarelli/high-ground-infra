@@ -61,6 +61,11 @@ on:
         required: false
         type: string
         default: ""
+      build_args:
+        description: "Comma-separated KEY=value pairs passed as Docker build args. Useful for Vite/Next.js where vars must be inlined at build time."
+        required: false
+        type: string
+        default: ""
       gcp_project:
         required: false
         type: string
@@ -132,4 +137,5 @@ jobs:
             --allow-unauthenticated "${{ inputs.allow_unauthenticated }}" \
             --vpc-egress "${{ inputs.vpc_egress }}" \
             --secrets "${{ inputs.secrets_map }}" \
-            --env-vars "${{ inputs.env_vars }}"
+            --env-vars "${{ inputs.env_vars }}" \
+            --build-args "${{ inputs.build_args }}"
