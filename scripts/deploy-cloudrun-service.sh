@@ -113,9 +113,13 @@ fi
 
 # ---- 3. Build image ----
 echo "==> Building image: ${IMAGE_SHA}"
+# --suppress-logs: gcloud's recent default writes build logs to a Google-internal
+# bucket the calling SA can't read. Skip log streaming; build still runs and
+# gcloud waits + returns final status. Inspect failures in GCP console.
 gcloud builds submit "${SOURCE_DIR}" \
   --project="${PROJECT}" \
   --tag "${IMAGE_SHA}" \
+  --suppress-logs \
   --quiet
 
 # Tag :latest as a convenience pointer.

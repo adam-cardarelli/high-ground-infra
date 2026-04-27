@@ -78,9 +78,14 @@ else
   IMAGE_LATEST="${IMAGE}:latest"
 
   echo "==> Building image: ${IMAGE_SHA}"
+  # --suppress-logs: gcloud's recent default writes build logs to a Google-internal
+  # bucket that the calling SA can't read, breaking CI. Skip log streaming; the
+  # build still runs and gcloud waits + returns the final status. Inspect failures
+  # in the GCP console via the build URL printed above.
   gcloud builds submit "${SOURCE_DIR}" \
     --project="${PROJECT}" \
     --tag "${IMAGE_SHA}" \
+    --suppress-logs \
     --quiet
 
   gcloud artifacts docker tags add "${IMAGE_SHA}" "${IMAGE_LATEST}" \
