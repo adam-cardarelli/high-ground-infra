@@ -63,7 +63,10 @@ done
 [[ -n "$APP" ]] || { echo "ERROR: --app is required"; exit 2; }
 
 JOB="hg-${APP}"
-RUNTIME_SA="${RUNTIME_SA:-hg-${APP}-runtime@${PROJECT}.iam.gserviceaccount.com}"
+# SA name default is `hg-<app>` (no `-runtime` suffix) to fit GCP's 30-char SA
+# local-part limit, which `hg-<app>-runtime` blows past for any app with a
+# composite slug like `agent-action-item-registry`.
+RUNTIME_SA="${RUNTIME_SA:-hg-${APP}@${PROJECT}.iam.gserviceaccount.com}"
 
 # ---- Decide image source ----
 if [[ -n "$PRESET_IMAGE" ]]; then

@@ -19,7 +19,7 @@ One project for everything. No `-dev` / `-prod` split — this is a labs environ
 | Cloud Run service | `hg-<app>` | `hg-data-workbench-api` |
 | Cloud Run job | `hg-<app>-<task>` | `hg-agent-action-item-registry` |
 | Container image | `<app>:<git-sha>` (also `:latest`) | `data-workbench-api:a3f9c2e` |
-| Runtime SA | `hg-<app>-runtime@…` | `hg-data-workbench-api-runtime@high-ground-labs.iam.gserviceaccount.com` |
+| Runtime SA | `hg-<app>@…` | `hg-data-workbench-api@high-ground-labs.iam.gserviceaccount.com` |
 | Deployer SA | `hg-deployer@…` | one per project, used by GitHub Actions via WIF |
 | Secret (cross-app) | `hg-shared-<name>` | `hg-shared-anthropic-key` |
 | Secret (app-scoped) | `hg-<app>-<name>` | `hg-data-workbench-factset-key` |

@@ -75,7 +75,9 @@ SERVICE="hg-${APP}"
 IMAGE="${IMAGE_HOST}/${PROJECT}/${REGISTRY}/${APP}"
 IMAGE_SHA="${IMAGE}:${GIT_SHA}"
 IMAGE_LATEST="${IMAGE}:latest"
-RUNTIME_SA="${RUNTIME_SA:-hg-${APP}-runtime@${PROJECT}.iam.gserviceaccount.com}"
+# SA name default is `hg-<app>` (no `-runtime` suffix) to fit GCP's 30-char SA
+# local-part limit, which `hg-<app>-runtime` blows past for composite slugs.
+RUNTIME_SA="${RUNTIME_SA:-hg-${APP}@${PROJECT}.iam.gserviceaccount.com}"
 
 echo "==> App: ${APP}"
 echo "    Service:    ${SERVICE}"
