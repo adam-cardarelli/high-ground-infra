@@ -3,11 +3,11 @@
 #
 # Usage:
 #   deploy-cloudrun-service.sh \
-#     --app data-workbench-api \
+#     --app data-vendors-api \
 #     --source-dir apps/api \
 #     --port 8000 \
 #     --vpc-egress all-traffic \
-#     --secrets "FACTSET_USERNAME=hg-data-workbench-factset-username,FACTSET_API_KEY=hg-data-workbench-factset-key" \
+#     --secrets "FACTSET_USERNAME=hg-data-vendors-factset-username,FACTSET_API_KEY=hg-data-vendors-factset-key" \
 #     --env-vars "ENVIRONMENT=production" \
 #     --allow-unauthenticated true
 #

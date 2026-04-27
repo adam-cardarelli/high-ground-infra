@@ -103,7 +103,7 @@ Remaining one-time setup:
 3. NAT gateway (only if any service needs static-IP egress, e.g. FactSet):
      ./scripts/nat-gateway.sh
 
-4. Tag this repo as v1 once it's deploying both data-workbench and high-ground-agents:
+4. Tag this repo as v1 once it's deploying both high-ground-data-vendors and high-ground-agents:
      git tag v1 && git push --tags
 
 NEXT

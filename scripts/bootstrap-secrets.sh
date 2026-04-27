@@ -53,8 +53,8 @@ put_secret hg-shared-gemini-key       "Gemini API key (gemini-* models)"        
 put_secret hg-agents-slack-bot-token  "Slack bot token (agents — xoxb-...)"          silent
 
 # ---- Data workbench app ----
-put_secret hg-data-workbench-factset-username "FactSet username (data-workbench)"
-put_secret hg-data-workbench-factset-key      "FactSet API key (data-workbench)"     silent
+put_secret hg-data-vendors-factset-username "FactSet username (data-vendors)"
+put_secret hg-data-vendors-factset-key      "FactSet API key (data-vendors)"     silent
 
 cat <<DONE
 

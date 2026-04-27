@@ -61,7 +61,7 @@ The setup above lets *any* repo you own deploy. If you want to restrict to speci
 # In step 3, replace the principalSet line with one binding per repo:
 gcloud iam service-accounts add-iam-policy-binding "hg-deployer@${PROJECT}.iam.gserviceaccount.com" \
   --role="roles/iam.workloadIdentityUser" \
-  --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${POOL}/attribute.repository/${GITHUB_OWNER}/data-workbench"
+  --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${POOL}/attribute.repository/${GITHUB_OWNER}/high-ground-data-vendors"
 ```
 
 For a solo developer, repo-level restriction is overkill. The `repository_owner` condition (step 2) is enough.
@@ -79,7 +79,7 @@ jobs:
   deploy:
     uses: adam-cardarelli/high-ground-infra/.github/workflows/reusable-deploy-service.yml@v1
     with:
-      app: data-workbench-api
+      app: data-vendors-api
       source_dir: apps/api
       # ...
 ```

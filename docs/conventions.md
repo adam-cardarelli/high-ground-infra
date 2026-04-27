@@ -16,16 +16,16 @@ One project for everything. No `-dev` / `-prod` split — this is a labs environ
 
 | Resource | Pattern | Example |
 |---|---|---|
-| Cloud Run service | `hg-<app>` | `hg-data-workbench-api` |
+| Cloud Run service | `hg-<app>` | `hg-data-vendors-api` |
 | Cloud Run job | `hg-<app>-<task>` | `hg-agent-action-item-registry` |
-| Container image | `<app>:<git-sha>` (also `:latest`) | `data-workbench-api:a3f9c2e` |
-| Runtime SA | `hg-<app>@…` | `hg-data-workbench-api@high-ground-labs.iam.gserviceaccount.com` |
+| Container image | `<app>:<git-sha>` (also `:latest`) | `data-vendors-api:a3f9c2e` |
+| Runtime SA | `hg-<app>@…` | `hg-data-vendors-api@high-ground-labs.iam.gserviceaccount.com` |
 | Deployer SA | `hg-deployer@…` | one per project, used by GitHub Actions via WIF |
 | Secret (cross-app) | `hg-shared-<name>` | `hg-shared-anthropic-key` |
-| Secret (app-scoped) | `hg-<app>-<name>` | `hg-data-workbench-factset-key` |
+| Secret (app-scoped) | `hg-<app>-<name>` | `hg-data-vendors-factset-key` |
 | Cloud Scheduler entry | `hg-<job>-cron` | `hg-agent-action-item-registry-cron` |
 
-`<app>` is the app's slug — usually the repo name, or `<repo>-<sub>` if the repo deploys multiple things (e.g. `data-workbench-api`, `data-workbench-web`).
+`<app>` is the app's slug — usually the repo name, or `<repo>-<sub>` if the repo deploys multiple things (e.g. `data-vendors-api`, `data-vendors-web`).
 
 ## Service accounts
 
@@ -38,7 +38,7 @@ One **runtime SA per app**. Created at deploy time if missing. Granted only the 
 | Read BigQuery dataset | `roles/bigquery.dataViewer` (per-dataset binding) |
 | Run BigQuery jobs | `roles/bigquery.jobUser` (project-level — limited to the SA itself) |
 
-One **deployer SA** at the project level: `hg-deployer@high-ground-labs.iam.gserviceaccount.com`, used by GitHub Actions only. Roles: `roles/run.admin`, `roles/cloudbuild.builds.editor`, `roles/storage.admin` (for build artifacts), `roles/iam.serviceAccountUser` (so it can deploy services that run as the per-app runtime SAs), `roles/artifactregistry.writer`. **Authenticated via Workload Identity Federation** — no JSON keys ever exist on disk.
+One **deployer SA** at the project level: `hg-deployer@high-ground-labs.iam.gserviceaccount.com`, used by GitHub Actions only. Roles: `roles/run.admin`, `roles/cloudbuild.builds.editor`, `roles/storage.admin` (for build artifacts), `roles/iam.serviceAccountUser` (so it can deploy services that run as the per-app runtime SAs), `roles/iam.serviceAccountCreator` (creates per-app runtime SAs on first deploy), `roles/artifactregistry.writer`, `roles/secretmanager.admin`, `roles/cloudscheduler.admin`. **Authenticated via Workload Identity Federation** — no JSON keys ever exist on disk.
 
 ## Secrets
 
@@ -86,7 +86,7 @@ When you call the reusable workflow without overriding, you get:
 - `timeout: 60` (services) / `15m` (jobs)
 - `allow_unauthenticated: true` (services — flip to false for internal-only)
 - `vpc_egress: none`
-- `runtime_sa: hg-<app>-runtime` (created if missing)
+- `runtime_sa: hg-<app>` (created if missing)
 
 Override in your workflow inputs when defaults don't fit.
 

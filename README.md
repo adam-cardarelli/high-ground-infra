@@ -29,7 +29,7 @@ high-ground-infra/
 Each app repo's CI is a 15-line file that calls our reusable workflow. Example:
 
 ```yaml
-# data-workbench/.github/workflows/deploy.yml
+# high-ground-data-vendors/.github/workflows/deploy.yml
 on:
   push:
     branches: [main]
@@ -38,11 +38,11 @@ jobs:
   deploy-api:
     uses: adam-cardarelli/high-ground-infra/.github/workflows/reusable-deploy-service.yml@v1
     with:
-      app: data-workbench-api
+      app: data-vendors-api
       source_dir: apps/api
       port: 8000
       vpc_egress: all-traffic
-      secrets_map: FACTSET_USERNAME=hg-data-workbench-factset-username,FACTSET_API_KEY=hg-data-workbench-factset-key
+      secrets_map: FACTSET_USERNAME=hg-data-vendors-factset-username,FACTSET_API_KEY=hg-data-vendors-factset-key
     permissions:
       contents: read
       id-token: write

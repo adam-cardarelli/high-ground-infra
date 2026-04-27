@@ -16,8 +16,8 @@ All secret values live in GCP Secret Manager in project `high-ground-labs`. Neve
 | `hg-shared-anthropic-key` | agents | Anthropic API key (claude-* models) |
 | `hg-shared-gemini-key` | agents | Gemini API key (gemini-* models) |
 | `hg-agents-slack-bot-token` | agents | Slack bot token, read-only on configured channels |
-| `hg-data-workbench-factset-username` | data-workbench | FactSet API username |
-| `hg-data-workbench-factset-key` | data-workbench | FactSet API key |
+| `hg-data-vendors-factset-username` | high-ground-data-vendors | FactSet API username |
+| `hg-data-vendors-factset-key` | high-ground-data-vendors | FactSet API key |
 
 When you add a new secret, append it to the table above AND to `scripts/bootstrap-secrets.sh` so future bootstraps include it.
 
@@ -40,7 +40,7 @@ printf '%s' "VALUE" | gcloud secrets create hg-<app>-<name> \
 Apps declare secrets in their deploy workflow's `secrets_map` input:
 
 ```yaml
-secrets_map: FACTSET_USERNAME=hg-data-workbench-factset-username,FACTSET_API_KEY=hg-data-workbench-factset-key
+secrets_map: FACTSET_USERNAME=hg-data-vendors-factset-username,FACTSET_API_KEY=hg-data-vendors-factset-key
 ```
 
 The deploy script:
@@ -67,8 +67,8 @@ Legacy `high-ground-labs/infra/create-secrets.sh` created:
 
 | Legacy name | New convention |
 |---|---|
-| `factset-username` | `hg-data-workbench-factset-username` |
-| `factset-api-key` | `hg-data-workbench-factset-key` |
+| `factset-username` | `hg-data-vendors-factset-username` |
+| `factset-api-key` | `hg-data-vendors-factset-key` |
 | `gemini-api-key` | `hg-shared-gemini-key` |
 | `anthropic-api-key` | `hg-shared-anthropic-key` |
 | `slack-bot-token` | `hg-agents-slack-bot-token` |

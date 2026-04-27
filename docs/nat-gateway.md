@@ -11,7 +11,7 @@ The fix: route Cloud Run egress through a VPC connector → Cloud NAT → reserv
 ## Topology
 
 ```
-Cloud Run service (data-workbench-api)
+Cloud Run service (data-vendors-api)
     │
     │ --vpc-egress all-traffic
     │ --vpc-connector company-data-conn
