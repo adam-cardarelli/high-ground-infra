@@ -36,6 +36,16 @@ if [[ -z "$SCHEDULER_SA" ]]; then
   SCHEDULER_SA="${PROJ_NUM}-compute@developer.gserviceaccount.com"
 fi
 
+# Grant the scheduler SA permission to invoke this specific Cloud Run job.
+# Without this, the scheduled trigger fires but the run.googleapis.com call
+# returns 403. Idempotent.
+gcloud run jobs add-iam-policy-binding "${JOB}" \
+  --project="${PROJECT}" \
+  --region="${REGION}" \
+  --member="serviceAccount:${SCHEDULER_SA}" \
+  --role=roles/run.invoker \
+  --quiet >/dev/null
+
 if gcloud scheduler jobs describe "${SCHEDULE_NAME}" \
      --location="${REGION}" --project="${PROJECT}" >/dev/null 2>&1; then
   CMD="update"

@@ -65,8 +65,10 @@ DEPLOYER_ROLES=(
   roles/storage.admin
   roles/artifactregistry.writer
   roles/iam.serviceAccountUser
+  roles/iam.serviceAccountCreator
   roles/secretmanager.admin
   roles/cloudscheduler.admin
+  roles/viewer
 )
 
 for role in "${DEPLOYER_ROLES[@]}"; do

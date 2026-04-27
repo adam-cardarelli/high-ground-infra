@@ -71,6 +71,18 @@ done
 [[ -n "$SOURCE_DIR" ]] || { echo "ERROR: --source-dir is required"; exit 2; }
 [[ -d "$SOURCE_DIR" ]] || { echo "ERROR: source dir not found: $SOURCE_DIR"; exit 2; }
 
+# Normalize SECRETS: Cloud Run requires an explicit version suffix on each
+# secret reference. Append :latest to any pair that doesn't have one.
+if [[ -n "$SECRETS" ]]; then
+  NORMALIZED=""
+  IFS=',' read -ra _PAIRS <<< "$SECRETS"
+  for pair in "${_PAIRS[@]}"; do
+    [[ "$pair" == *":"* ]] || pair="${pair}:latest"
+    NORMALIZED="${NORMALIZED:+${NORMALIZED},}${pair}"
+  done
+  SECRETS="$NORMALIZED"
+fi
+
 SERVICE="hg-${APP}"
 IMAGE="${IMAGE_HOST}/${PROJECT}/${REGISTRY}/${APP}"
 IMAGE_SHA="${IMAGE}:${GIT_SHA}"
@@ -87,12 +99,29 @@ echo "    Runtime SA: ${RUNTIME_SA}"
 
 # ---- 1. Ensure runtime service account exists ----
 SA_LOCAL="${RUNTIME_SA%@*}"
+SA_CREATED="false"
 if ! gcloud iam service-accounts describe "${RUNTIME_SA}" --project="${PROJECT}" >/dev/null 2>&1; then
   echo "==> Creating runtime SA: ${RUNTIME_SA}"
   gcloud iam service-accounts create "${SA_LOCAL}" \
     --project="${PROJECT}" \
     --display-name="${APP} runtime"
+  SA_CREATED="true"
 fi
+
+# IAM is eventually consistent — wait briefly so subsequent calls see the new SA.
+if [[ "$SA_CREATED" == "true" ]]; then
+  echo "==> Waiting 15s for SA to propagate"
+  sleep 15
+fi
+
+# ---- 1b. Baseline runtime SA roles (logging/metrics) ----
+for role in roles/logging.logWriter roles/monitoring.metricWriter; do
+  gcloud projects add-iam-policy-binding "${PROJECT}" \
+    --member="serviceAccount:${RUNTIME_SA}" \
+    --role="${role}" \
+    --condition=None \
+    --quiet >/dev/null
+done
 
 # ---- 2. Grant runtime SA access to its declared secrets ----
 if [[ -n "$SECRETS" ]]; then

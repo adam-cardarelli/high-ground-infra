@@ -62,6 +62,19 @@ done
 
 [[ -n "$APP" ]] || { echo "ERROR: --app is required"; exit 2; }
 
+# Normalize SECRETS: Cloud Run requires an explicit version suffix on each
+# secret reference (e.g. KEY=name:latest). Append :latest to any pair that
+# doesn't already specify a version.
+if [[ -n "$SECRETS" ]]; then
+  NORMALIZED=""
+  IFS=',' read -ra _PAIRS <<< "$SECRETS"
+  for pair in "${_PAIRS[@]}"; do
+    [[ "$pair" == *":"* ]] || pair="${pair}:latest"
+    NORMALIZED="${NORMALIZED:+${NORMALIZED},}${pair}"
+  done
+  SECRETS="$NORMALIZED"
+fi
+
 JOB="hg-${APP}"
 # SA name default is `hg-<app>` (no `-runtime` suffix) to fit GCP's 30-char SA
 # local-part limit, which `hg-<app>-runtime` blows past for any app with a
@@ -104,11 +117,42 @@ fi
 
 # ---- Ensure runtime SA exists ----
 SA_LOCAL="${RUNTIME_SA%@*}"
+SA_CREATED="false"
 if ! gcloud iam service-accounts describe "${RUNTIME_SA}" --project="${PROJECT}" >/dev/null 2>&1; then
   echo "==> Creating runtime SA: ${RUNTIME_SA}"
   gcloud iam service-accounts create "${SA_LOCAL}" \
     --project="${PROJECT}" \
     --display-name="${APP} runtime"
+  SA_CREATED="true"
+fi
+
+# IAM is eventually consistent. After creation, subsequent gcloud calls that
+# reference the SA can fail with "service account does not exist" until the
+# new SA propagates. Wait briefly when we just created one.
+if [[ "$SA_CREATED" == "true" ]]; then
+  echo "==> Waiting 15s for SA to propagate"
+  sleep 15
+fi
+
+# ---- Grant runtime SA baseline roles ----
+# Cloud Run logging/metrics writers and access to the shared agents state
+# bucket. Idempotent — re-running just re-asserts the bindings.
+AGENTS_BUCKET="${HG_AGENTS_BUCKET:-hg-agents-state}"
+
+for role in roles/logging.logWriter roles/monitoring.metricWriter; do
+  gcloud projects add-iam-policy-binding "${PROJECT}" \
+    --member="serviceAccount:${RUNTIME_SA}" \
+    --role="${role}" \
+    --condition=None \
+    --quiet >/dev/null
+done
+
+if gcloud storage buckets describe "gs://${AGENTS_BUCKET}" --project="${PROJECT}" >/dev/null 2>&1; then
+  gcloud storage buckets add-iam-policy-binding "gs://${AGENTS_BUCKET}" \
+    --member="serviceAccount:${RUNTIME_SA}" \
+    --role=roles/storage.objectAdmin \
+    --project="${PROJECT}" \
+    --quiet >/dev/null
 fi
 
 # ---- Grant runtime SA access to declared secrets ----
