@@ -174,7 +174,7 @@ else
   gcloud builds submit "${SOURCE_DIR}" \
     --project="${PROJECT}" \
     --tag "${IMAGE_SHA}" \
-    --suppress-logs \
+    --default-buckets-behavior=REGIONAL_USER_OWNED_BUCKET \
     --quiet
 fi
 
