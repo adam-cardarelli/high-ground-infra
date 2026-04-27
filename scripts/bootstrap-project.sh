@@ -69,7 +69,6 @@ DEPLOYER_ROLES=(
   roles/iam.serviceAccountCreator
   roles/secretmanager.admin
   roles/cloudscheduler.admin
-  roles/viewer
 )
 
 for role in "${DEPLOYER_ROLES[@]}"; do
