@@ -24,6 +24,7 @@ echo "==> Project: ${PROJECT}  Region: ${REGION}"
 
 echo "==> Enabling APIs"
 gcloud services enable \
+  cloudresourcemanager.googleapis.com \
   run.googleapis.com \
   cloudbuild.googleapis.com \
   cloudscheduler.googleapis.com \

@@ -134,19 +134,12 @@ if [[ "$SA_CREATED" == "true" ]]; then
   sleep 15
 fi
 
-# ---- Grant runtime SA baseline roles ----
-# Cloud Run logging/metrics writers and access to the shared agents state
-# bucket. Idempotent — re-running just re-asserts the bindings.
+# ---- Grant runtime SA access to the shared agents state bucket ----
+# Cloud Run captures stdout/stderr to Cloud Logging via its own service
+# agent — no logWriter/metricWriter grants needed on the runtime SA.
+# But the runtime SA does need r/w on the agents state bucket since that's
+# where state_* tools persist cursors / runs / artifacts.
 AGENTS_BUCKET="${HG_AGENTS_BUCKET:-hg-agents-state}"
-
-for role in roles/logging.logWriter roles/monitoring.metricWriter; do
-  gcloud projects add-iam-policy-binding "${PROJECT}" \
-    --member="serviceAccount:${RUNTIME_SA}" \
-    --role="${role}" \
-    --condition=None \
-    --quiet >/dev/null
-done
-
 if gcloud storage buckets describe "gs://${AGENTS_BUCKET}" --project="${PROJECT}" >/dev/null 2>&1; then
   gcloud storage buckets add-iam-policy-binding "gs://${AGENTS_BUCKET}" \
     --member="serviceAccount:${RUNTIME_SA}" \

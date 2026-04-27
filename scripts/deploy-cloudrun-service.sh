@@ -114,15 +114,6 @@ if [[ "$SA_CREATED" == "true" ]]; then
   sleep 15
 fi
 
-# ---- 1b. Baseline runtime SA roles (logging/metrics) ----
-for role in roles/logging.logWriter roles/monitoring.metricWriter; do
-  gcloud projects add-iam-policy-binding "${PROJECT}" \
-    --member="serviceAccount:${RUNTIME_SA}" \
-    --role="${role}" \
-    --condition=None \
-    --quiet >/dev/null
-done
-
 # ---- 2. Grant runtime SA access to its declared secrets ----
 if [[ -n "$SECRETS" ]]; then
   IFS=',' read -ra SECRET_PAIRS <<< "$SECRETS"
