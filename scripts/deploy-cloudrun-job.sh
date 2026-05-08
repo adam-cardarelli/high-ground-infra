@@ -94,15 +94,40 @@ else
   IMAGE_LATEST="${IMAGE}:latest"
 
   echo "==> Building image: ${IMAGE_SHA}"
-  # --suppress-logs: gcloud's recent default writes build logs to a Google-internal
-  # bucket that the calling SA can't read, breaking CI. Skip log streaming; the
-  # build still runs and gcloud waits + returns the final status. Inspect failures
-  # in the GCP console via the build URL printed above.
-  gcloud builds submit "${SOURCE_DIR}" \
+  # Submit the build async, then poll for completion. The synchronous form
+  # (`gcloud builds submit` without --async) tries to stream logs from the
+  # default Cloud Build logs bucket, which requires roles/viewer on the
+  # project. We don't grant the deployer SA Viewer for security reasons, so
+  # we sidestep the streaming entirely.
+  BUILD_ID="$(gcloud builds submit "${SOURCE_DIR}" \
     --project="${PROJECT}" \
     --tag "${IMAGE_SHA}" \
-    --suppress-logs \
-    --quiet
+    --async \
+    --quiet \
+    --format='value(id)')"
+  echo "==> Build submitted (id=${BUILD_ID}); polling..."
+  while true; do
+    STATUS="$(gcloud builds describe "${BUILD_ID}" \
+      --project="${PROJECT}" \
+      --format='value(status)')"
+    case "$STATUS" in
+      SUCCESS)
+        echo "==> Build SUCCESS"
+        break
+        ;;
+      FAILURE|TIMEOUT|CANCELLED|EXPIRED)
+        echo "==> Build $STATUS — see https://console.cloud.google.com/cloud-build/builds/${BUILD_ID}?project=${PROJECT}"
+        exit 1
+        ;;
+      WORKING|QUEUED|PENDING|"")
+        sleep 10
+        ;;
+      *)
+        echo "==> Unknown build status: ${STATUS}; continuing to poll"
+        sleep 10
+        ;;
+    esac
+  done
 
   gcloud artifacts docker tags add "${IMAGE_SHA}" "${IMAGE_LATEST}" \
     --project="${PROJECT}" \
