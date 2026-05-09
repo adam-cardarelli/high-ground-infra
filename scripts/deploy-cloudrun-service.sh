@@ -23,6 +23,10 @@
 # This script is idempotent. Safe to re-run.
 set -euo pipefail
 
+# Retry helper for IAM optimistic-concurrency conflicts (409 / 412).
+# shellcheck source=lib/retry.sh
+source "$(dirname "$0")/lib/retry.sh"
+
 # ---- Defaults (per docs/conventions.md) ----
 PROJECT="${GCP_PROJECT:-high-ground-labs}"
 REGION="${GCP_REGION:-us-central1}"
@@ -123,7 +127,7 @@ if [[ -n "$SECRETS" ]]; then
     secret_name="${pair#*=}"
     secret_name="${secret_name%:*}"
     if gcloud secrets describe "${secret_name}" --project="${PROJECT}" >/dev/null 2>&1; then
-      gcloud secrets add-iam-policy-binding "${secret_name}" \
+      retry_on_iam_conflict gcloud secrets add-iam-policy-binding "${secret_name}" \
         --project="${PROJECT}" \
         --member="serviceAccount:${RUNTIME_SA}" \
         --role="roles/secretmanager.secretAccessor" \

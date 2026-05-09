@@ -24,6 +24,10 @@
 # Idempotent.
 set -euo pipefail
 
+# Retry helper for IAM optimistic-concurrency conflicts (409 / 412).
+# shellcheck source=lib/retry.sh
+source "$(dirname "$0")/lib/retry.sh"
+
 PROJECT="${GCP_PROJECT:-high-ground-labs}"
 REGION="${GCP_REGION:-us-central1}"
 REGISTRY="${ARTIFACT_REGISTRY:-hg-images}"
@@ -166,7 +170,7 @@ fi
 # where state_* tools persist cursors / runs / artifacts.
 AGENTS_BUCKET="${HG_AGENTS_BUCKET:-hg-agents-state}"
 if gcloud storage buckets describe "gs://${AGENTS_BUCKET}" --project="${PROJECT}" >/dev/null 2>&1; then
-  gcloud storage buckets add-iam-policy-binding "gs://${AGENTS_BUCKET}" \
+  retry_on_iam_conflict gcloud storage buckets add-iam-policy-binding "gs://${AGENTS_BUCKET}" \
     --member="serviceAccount:${RUNTIME_SA}" \
     --role=roles/storage.objectAdmin \
     --project="${PROJECT}" \
@@ -180,7 +184,7 @@ if [[ -n "$SECRETS" ]]; then
     secret_name="${pair#*=}"
     secret_name="${secret_name%:*}"
     if gcloud secrets describe "${secret_name}" --project="${PROJECT}" >/dev/null 2>&1; then
-      gcloud secrets add-iam-policy-binding "${secret_name}" \
+      retry_on_iam_conflict gcloud secrets add-iam-policy-binding "${secret_name}" \
         --project="${PROJECT}" \
         --member="serviceAccount:${RUNTIME_SA}" \
         --role="roles/secretmanager.secretAccessor" \
